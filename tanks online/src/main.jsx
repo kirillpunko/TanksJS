@@ -7,8 +7,7 @@ import { Canvas } from "@react-three/fiber";
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <div id="container">
-      <div className="aim"></div>
-      <Canvas camera={{ fov: 45 }}>
+      <Canvas camera={{ fov: 60 }} shadows>
         <App />
       </Canvas>
     </div>
