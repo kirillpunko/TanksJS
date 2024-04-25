@@ -23,9 +23,8 @@ export const App = () => {
       <Physics gravity={[0, -20, 0]}>
         <Ground />
         <Player/>
-        
         <RigidBody>
-          <mesh position={[0, 3, -5]}>
+          <mesh position={[0, 0, 0]}>
             <boxGeometry />
           </mesh>
         </RigidBody>
