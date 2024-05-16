@@ -66,9 +66,9 @@ export const Tank = (props) => {
 
     return (
         
-        <group {...props.position}>
+        <group >
             <group ref={TRef}>
-                <Model />
+                <Model {...props.position}/>
             </group>
         </group>
     );

@@ -2,9 +2,23 @@ import { PointerLockControls, Sky } from "@react-three/drei";
 import { Ground } from "./Ground.jsx";
 import { Physics, RigidBody } from "@react-three/rapier";
 import { Player } from "./player.jsx";
+import { OtherPlayer } from "./otherPlayer.jsx";
+
+import socketIO from 'socket.io-client'
+import { useEffect,useState } from "react";
+
+const socket= socketIO.connect('http://localhost:5000');
 
 const shadowOffset= 50;
 export const App = () => {
+  const [playersData,setPlayersData]=useState(null);
+
+  useEffect(()=>{
+    socket.on('responseState',(data)=>{
+      setPlayersData(data)
+    })
+  },[playersData,socket])
+
   return (
     <>
       <PointerLockControls mousespeed={0.1}/>
@@ -22,7 +36,19 @@ export const App = () => {
       />
       <Physics gravity={[0, -20, 0]}>
         <Ground />
-        <Player/>
+        <Player socket={socket}/>
+        {
+          playersData && playersData.map((data)=>{
+              if (data.socketID!=socket.id){
+                return(
+                <OtherPlayer x={data.x} y={data.y} z={data.z} rotation={data.rotation} shoot={false}/>
+                )
+              }
+              else{
+                return null;
+              }
+            })
+        }
         <RigidBody>
           <mesh position={[0, 0, 0]}>
             <boxGeometry />
