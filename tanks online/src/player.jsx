@@ -4,12 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import { usePersonControls } from "./hooks.js";
 import { useFrame } from "@react-three/fiber";
 import { Tank } from "./tank.jsx";
-import {Vector3} from "three";
+import {Vector3, Raycaster} from "three";
 
 const MOVE_SPEED = 5;
 const direction = new THREE.Vector3();
 const coords={
   x: Math.random()*100-50,
+  y: 1,
   z: Math.random()*100-50
 }
 export const Player = ({socket}) => {
@@ -20,24 +21,15 @@ export const Player = ({socket}) => {
   const [scopeOffsetX,setScopeOffsetX] = useState(0);
   const [scopeOffsetY,setScopeOffsetY] = useState(0);
   const [isShoot,setIsShooted] = useState(0);
+  const [scopeObject,setScopeObj] = useState(null);
   let counterAnim=0;
   const radius = 3;
   const tankRef = useRef();
   let quaternion = new THREE.Quaternion();
+  const raycaster = new THREE.Raycaster();
 
   useFrame((state) => {
     if (!playerRef.current) return;
-
-    ////Вот это обернуть в useEffect не знаю какие зависимости но надо, либо присваивать изначально coords
-    ///P.S. вроде работает но почему то не отрисовывает, свойства то в кавычках то нет + починить камеру при включении второго вида 
-    //send coords
-    socket.emit('stateNow',{
-      x: playerRef.current.x,
-      y: playerRef.current.y,
-      z: playerRef.current.z,
-      rotation: tankRef.current.rotation.y,
-      socketID: socket.id 
-    })
 
     //meh position
     if (sides == 1) {
@@ -77,6 +69,17 @@ export const Player = ({socket}) => {
     
       //camera position and direction
       const { x, y, z } = playerRef.current.translation();
+      ////Вот это обернуть в useEffect не знаю какие зависимости но надо, либо присваивать изначально coords
+      ///P.S. вроде работает но почему то не отрисовывает, свойства то в кавычках то нет + починить камеру при включении второго вида 
+      //send coords
+      socket.emit('stateNow',{
+        x: x,
+        y: y,
+        z: z,
+        rotation: tankRef.current.rotation.y,
+        socketID: socket.id 
+      })
+
       let posX = x + radius * Math.sin(theta);
       let posZ = z + radius * Math.cos(theta);
       state.camera.position.set(posX, y + 3, posZ);
@@ -130,19 +133,35 @@ export const Player = ({socket}) => {
       posX= x + R * Math.sin((theta+scopeOffsetX))*2;
       posZ= z + R * Math.cos((theta+scopeOffsetX))*2;
       ///////////////////////////
-      state.camera.lookAt(new THREE.Vector3(posX,posY,posZ));        
+      state.camera.lookAt(new THREE.Vector3(posX,posY,posZ));      
+      
+      // Raycasting from the camera to the target point
+      const cameraPosition = state.camera.position.clone();
+      const targetPosition = new THREE.Vector3(posX, posY, posZ);
+      raycaster.set(cameraPosition, targetPosition.sub(cameraPosition).normalize());
+
+      // Check for intersections
+      const intersects = raycaster.intersectObjects(state.scene.children, true);
+      if (intersects.length > 0) {
+        setScopeObj(intersects[0].object);
+        //intersects[0].object.parent.userData.id
+      }
     }
 
     //animate camera when shooting
     if (isShoot){
+      socket.emit('hit',{
+        hited: scopeObject.parent.userData.id
+      })
       let coords = state.camera.position;
       state.camera.position.set(coords.x+Math.random()/5,coords.y+Math.random()/5,coords.z+Math.random()/5);
-      counterAnim++;
-      if(counterAnim>30){
+      setTimeout(() => {
         setIsShooted(false);
-      }
+      }, 300);
       state.camera.position.set(coords.x,coords.y,coords.z);
     }
+
+    
   });
 
   //handler for keydown
@@ -199,6 +218,13 @@ export const Player = ({socket}) => {
     playerRef.current.x= coords.x;
     playerRef.current.y= coords.y;
     playerRef.current.z= coords.z;
+    socket.emit('stateNow',{
+      x: coords.x,
+      y: coords.y,
+      z: coords.z,
+      rotation: tankRef.current.rotation.y,
+      socketID: socket.id 
+    })
     direction.set(1, 0, 0);
     return () => {
       document.addEventListener("keydown", switchSide);

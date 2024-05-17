@@ -68,7 +68,7 @@ export const Tank = (props) => {
         
         <group >
             <group ref={TRef}>
-                <Model {...props.position}/>
+                <Model tankid = {props.id}/>
             </group>
         </group>
     );

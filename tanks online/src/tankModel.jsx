@@ -8,7 +8,7 @@ import { useGLTF } from '@react-three/drei'
 export function Model(props) {
   const { nodes, materials } = useGLTF('./newTank.glb')
   return (
-    <group {...props} dispose={null}>
+    <group dispose={null} userData={{ id: props.tankid }}>
       <mesh
         castShadow
         receiveShadow

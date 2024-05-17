@@ -28,8 +28,10 @@ socketIO.on('connection',(socket)=>{
     console.log(playersState);
   })
   socket.on('disconnect',(reason)=>{
-    delete playersState.socket.id;
-    console.log(`${socket.id} user disconnected`)
+    let id = socket.id;
+    delete playersState[id];
+    console.log(`${socket.id} user disconnected`);
+    socketIO.emit('responseState', Object.values(playersState));
   })
 })
 

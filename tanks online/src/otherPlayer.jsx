@@ -7,7 +7,7 @@ import {Vector3} from "three";
 
 const direction = new THREE.Vector3();
 
-export const OtherPlayer = ({x,y,z,rotation,shoot}) => {
+export const OtherPlayer = ({id,x,y,z,rotation,shoot}) => {
   const playerRef = useRef();
   const [isShoot,setIsShooted] = useState(0);
   let counterAnim=0;
@@ -47,7 +47,7 @@ export const OtherPlayer = ({x,y,z,rotation,shoot}) => {
     <>
       <RigidBody position={[x,y,z]} ref={playerRef} lockRotations>
         <group ref={tankRef}>
-          <Tank position={[0, 0, 0]} statement={3} setisShoot={setIsShooted}/>
+          <Tank position={[0, 0, 0]} id = {id} statement={3} setisShoot={setIsShooted}/>
         </group>
       </RigidBody>
     </>

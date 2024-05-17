@@ -41,7 +41,7 @@ export const App = () => {
           playersData && playersData.map((data)=>{
               if (data.socketID!=socket.id){
                 return(
-                <OtherPlayer x={data.x} y={data.y} z={data.z} rotation={data.rotation} shoot={false}/>
+                <OtherPlayer key={data.socketID} id={data.socketID} x={data.x} y={data.y} z={data.z} rotation={data.rotation} shoot={false}/>
                 )
               }
               else{
