@@ -11,13 +11,18 @@ const socket= socketIO.connect('http://localhost:5000');
 
 const shadowOffset= 50;
 export const App = () => {
+  let aliveMore = -1;
   const [playersData,setPlayersData]=useState(null);
 
   useEffect(()=>{
     socket.on('responseState',(data)=>{
-      setPlayersData(data)
+      setPlayersData(data);
     })
   },[playersData,socket])
+
+  if (aliveMore==0){
+    console.log('u win')
+  }
 
   return (
     <>
@@ -39,12 +44,16 @@ export const App = () => {
         <Player socket={socket}/>
         {
           playersData && playersData.map((data)=>{
-              if (data.socketID!=socket.id){
+              if (data.socketID!=socket.id){/*
+                if (!data.isDie){
+                  aliveMore++;
+                }*/
                 return(
                 <OtherPlayer key={data.socketID} id={data.socketID} x={data.x} y={data.y} z={data.z} rotation={data.rotation} shoot={false}/>
                 )
               }
-              else{
+              else{/*
+                aliveMore++;*/
                 return null;
               }
             })

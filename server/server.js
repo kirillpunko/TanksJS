@@ -25,7 +25,13 @@ socketIO.on('connection',(socket)=>{
   socket.on('stateNow',(data)=>{
     playersState[socket.id] = data;
     socketIO.emit('responseState', Object.values(playersState));
-    console.log(playersState);
+  })
+  socket.on('hit',(data)=>{
+    socketIO.emit('responseHit', data);
+  })
+  socket.on('died',(data)=>{
+    playersState[socket.id] = data;
+    socketIO.emit('responseState', Object.values(playersState));
   })
   socket.on('disconnect',(reason)=>{
     let id = socket.id;

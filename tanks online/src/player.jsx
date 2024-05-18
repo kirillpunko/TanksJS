@@ -7,12 +7,15 @@ import { Tank } from "./tank.jsx";
 import {Vector3, Raycaster} from "three";
 
 const MOVE_SPEED = 5;
+const ROTATION_SPEED = 0.5;
+const SCOPE_SPEED = 0.1;
 const direction = new THREE.Vector3();
 const coords={
   x: Math.random()*100-50,
-  y: 1,
+  y: 1.5,
   z: Math.random()*100-50
 }
+
 export const Player = ({socket}) => {
   const playerRef = useRef();
   const { forward, backward, left, right } = usePersonControls();
@@ -22,28 +25,42 @@ export const Player = ({socket}) => {
   const [scopeOffsetY,setScopeOffsetY] = useState(0);
   const [isShoot,setIsShooted] = useState(0);
   const [scopeObject,setScopeObj] = useState(null);
-  let counterAnim=0;
+  const [hittedObj,setHittedObj] = useState(null);
+  const [isDie,setIsDie] = useState(false);
+  const [moveDirection, setMoveDirection] = useState({ x: 0, y: 0 });
+
   const radius = 3;
   const tankRef = useRef();
   let quaternion = new THREE.Quaternion();
   const raycaster = new THREE.Raycaster();
 
-  useFrame((state) => {
+  useFrame((state, delta) => {
     if (!playerRef.current) return;
+
+    if (isDie) {
+      const { x, y, z } = playerRef.current.translation();
+      setSide(1);
+      state.camera.position.set(x+10, y+7, z);
+      state.camera.setFocalLength(10);
+      state.camera.lookAt(x,y+4,z);
+      document.removeEventListener("keydown", switchSide);
+      return;
+    }
 
     //meh position
     if (sides == 1) {
       state.camera.setFocalLength(10);
       const velocity = playerRef.current.linvel();
-
+      const deltaY =  tankRef.current.rotation.y;
+      setTheta(deltaY);
       //model rotation
       if (left) {
-        tankRef.current.rotation.y += 0.003;
+        tankRef.current.rotation.y += ROTATION_SPEED * delta;
         const deltaX =  tankRef.current.rotation.y;
         setTheta(deltaX);
       }
       if (right) {
-        tankRef.current.rotation.y -= 0.003;
+        tankRef.current.rotation.y -= ROTATION_SPEED * delta;
         const deltaX =  tankRef.current.rotation.y;
         setTheta(deltaX);
       }
@@ -69,15 +86,13 @@ export const Player = ({socket}) => {
     
       //camera position and direction
       const { x, y, z } = playerRef.current.translation();
-      ////Вот это обернуть в useEffect не знаю какие зависимости но надо, либо присваивать изначально coords
-      ///P.S. вроде работает но почему то не отрисовывает, свойства то в кавычках то нет + починить камеру при включении второго вида 
-      //send coords
       socket.emit('stateNow',{
         x: x,
         y: y,
         z: z,
         rotation: tankRef.current.rotation.y,
-        socketID: socket.id 
+        socketID: socket.id,
+        isDie: isDie
       })
 
       let posX = x + radius * Math.sin(theta);
@@ -144,14 +159,13 @@ export const Player = ({socket}) => {
       const intersects = raycaster.intersectObjects(state.scene.children, true);
       if (intersects.length > 0) {
         setScopeObj(intersects[0].object);
-        //intersects[0].object.parent.userData.id
       }
     }
 
     //animate camera when shooting
     if (isShoot){
       socket.emit('hit',{
-        hited: scopeObject.parent.userData.id
+        hitted: scopeObject.parent.userData.id
       })
       let coords = state.camera.position;
       state.camera.position.set(coords.x+Math.random()/5,coords.y+Math.random()/5,coords.z+Math.random()/5);
@@ -160,8 +174,27 @@ export const Player = ({socket}) => {
       }, 300);
       state.camera.position.set(coords.x,coords.y,coords.z);
     }
-
     
+    //check is player die
+    if (hittedObj==socket.id){
+      setIsDie(true);
+      const { x, y, z } = playerRef.current.translation();
+      socket.emit('died',{
+        x: x,
+        y: y,
+        z: z,
+        rotation: tankRef.current.rotation.y,
+        socketID: socket.id,
+        isDie: true
+      });
+      coords.x=x;
+      coords.y=y;
+      coords.z=z;
+      document.getElementById('lose').classList.add('showRes');
+    }
+
+    setScopeOffsetX((oldOffset) => oldOffset + moveDirection.x * SCOPE_SPEED * delta);
+    setScopeOffsetY((oldOffset) => oldOffset + moveDirection.y * SCOPE_SPEED * delta);
   });
 
   //handler for keydown
@@ -179,7 +212,7 @@ export const Player = ({socket}) => {
         setSide(2);
         break;
     }
-
+    /*
     //diretion of camera movement while scoping
     switch (event.keyCode){
       case 37: 
@@ -194,9 +227,46 @@ export const Player = ({socket}) => {
       case 40:
         setScopeOffsetY((oldOffset)=>oldOffset-0.002);
         break;
+    }*/
+  };
+  
+  const handleScopeMove = (event) => {
+    switch (event.keyCode) {
+      case 37:
+        setMoveDirection((dir) => ({ ...dir, x: 1 }));
+        break;
+      case 38:
+        setMoveDirection((dir) => ({ ...dir, y: 1 }));
+        break;
+      case 39:
+        setMoveDirection((dir) => ({ ...dir, x: -1 }));
+        break;
+      case 40:
+        setMoveDirection((dir) => ({ ...dir, y: -1 }));
+        break;
     }
   };
   
+  const handleScopeStop = (event) => {
+    switch (event.keyCode) {
+      case 37:
+      case 39:
+        setMoveDirection((dir) => ({ ...dir, x: 0 }));
+        break;
+      case 38:
+      case 40:
+        setMoveDirection((dir) => ({ ...dir, y: 0 }));
+        break;
+    }
+  };
+
+  //get hit info
+  useEffect(()=>{
+    socket.on('responseHit',(data)=>{
+      setHittedObj(data.hitted)
+    })
+  },[hittedObj,socket])
+
   //add mask for canvas if the side of the player is "shooter"
   useEffect(()=>{
     if (sides == 2){
@@ -214,6 +284,8 @@ export const Player = ({socket}) => {
 //initialize component
   useEffect(() => {
     document.addEventListener("keydown", switchSide);
+    document.addEventListener("keydown", handleScopeMove);
+    document.addEventListener("keyup", handleScopeStop);
     tankRef.current.rotation.y = Math.random()*6;
     playerRef.current.x= coords.x;
     playerRef.current.y= coords.y;
@@ -227,13 +299,15 @@ export const Player = ({socket}) => {
     })
     direction.set(1, 0, 0);
     return () => {
-      document.addEventListener("keydown", switchSide);
+      document.removeEventListener("keydown", switchSide);
+      document.removeEventListener("keydown", handleScopeMove);
+      document.removeEventListener("keyup", handleScopeStop);
     };
   }, []);
 
   return (
     <>
-      <RigidBody position={[coords.x, 1, coords.z]} ref={playerRef} lockRotations>
+      <RigidBody position={[coords.x, 1.5, coords.z]} ref={playerRef} lockRotations>
         <group ref={tankRef}>
           <Tank position={[0, 0, 0]} statement={sides} setisShoot={setIsShooted}/>
         </group>
