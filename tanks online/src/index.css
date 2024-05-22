@@ -61,16 +61,26 @@ html, body, #root, #container{
   transition: all 3s ease-out;
   opacity: 0;
 }
-.dieText{
-  color: darkred;
+.winWindow{
+  background-color: rgba(66, 124, 66, 0.7);
+}
+.hide{
+  opacity: 0;
+}
+.resText{
   font-size: 70px;
   cursor: default;
+}
+.die{
+  color: darkred;
+}
+.win{
+  color: darkgreen;
 }
 .backBtn{
   border: none;
   background-color: grey;
   font-size: 40px;
-  color: darkred;
   margin-top: 20px;
   border-radius: 15px;
   padding: 5px 15px;

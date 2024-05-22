@@ -5,6 +5,7 @@ import { usePersonControls } from "./hooks.js";
 import { useFrame } from "@react-three/fiber";
 import { Tank } from "./tank.jsx";
 import {Vector3, Raycaster} from "three";
+import { useCamera } from "./cameraContex.jsx";
 
 const MOVE_SPEED = 5;
 const ROTATION_SPEED = 0.5;
@@ -16,7 +17,7 @@ const coords={
   z: Math.random()*100-50
 }
 
-export const Player = ({socket}) => {
+export const Player = ({socket, hittedObj}) => {
   const playerRef = useRef();
   const { forward, backward, left, right } = usePersonControls();
   const [sides,setSide] = useState(0);
@@ -25,28 +26,42 @@ export const Player = ({socket}) => {
   const [scopeOffsetY,setScopeOffsetY] = useState(0);
   const [isShoot,setIsShooted] = useState(0);
   const [scopeObject,setScopeObj] = useState(null);
-  const [hittedObj,setHittedObj] = useState(null);
+  const [firePos,setFirePos] = useState(null);
   const [isDie,setIsDie] = useState(false);
   const [moveDirection, setMoveDirection] = useState({ x: 0, y: 0 });
 
+  const cameraRef = useCamera();
   const radius = 3;
   const tankRef = useRef();
   let quaternion = new THREE.Quaternion();
   const raycaster = new THREE.Raycaster();
 
+  //death handler
+  const handleDeath = (state) => {
+    const { x, y, z } = playerRef.current.translation();
+    setSide(1);
+    state.camera.position.set(x + 10, y + 7, z);
+    state.camera.setFocalLength(10);
+    state.camera.lookAt(x, y + 4, z);
+    document.removeEventListener("keydown", switchSide);
+  };
+
+  //look around
+  const handleLookAround = (state) => {
+    state.camera.setFocalLength(15);
+    const { x, y, z } = playerRef.current.translation();
+    state.camera.position.set(x, y + 7, z);
+  };
+
   useFrame((state, delta) => {
     if (!playerRef.current) return;
 
+    cameraRef.current = state.camera;
+
     if (isDie) {
-      const { x, y, z } = playerRef.current.translation();
-      setSide(1);
-      state.camera.position.set(x+10, y+7, z);
-      state.camera.setFocalLength(10);
-      state.camera.lookAt(x,y+4,z);
-      document.removeEventListener("keydown", switchSide);
+      handleDeath(state);
       return;
     }
-
     //meh position
     if (sides == 1) {
       state.camera.setFocalLength(10);
@@ -105,9 +120,7 @@ export const Player = ({socket}) => {
 
     //position for look around
     if (sides == 0) {
-      state.camera.setFocalLength(15);
-      const { x, y, z } = playerRef.current.translation();
-      state.camera.position.set(x, y + 7, z);
+      handleLookAround(state);
     }
 
     //scope position
@@ -121,6 +134,7 @@ export const Player = ({socket}) => {
       let posZ = z + R * Math.cos(theta);
       let posY = y + 4;
       state.camera.position.set(posX, posY, posZ);
+      setFirePos({posx:posX, posy:posY, posz:posZ});
 
       //camera direction
       if(scopeOffsetX>Math.PI/24){
@@ -141,7 +155,6 @@ export const Player = ({socket}) => {
       posY = y+3;
       /////////////////////
 
-      ////Нужно доделать вот это и будет заебись/////////////////
       posY=  (y+3) * R * Math.sin(scopeOffsetY);
       //R=R*Math.cos((scopeOffsetY+theta));
       R=50;
@@ -158,23 +171,32 @@ export const Player = ({socket}) => {
       // Check for intersections
       const intersects = raycaster.intersectObjects(state.scene.children, true);
       if (intersects.length > 0) {
-        setScopeObj(intersects[0].object);
+        if (intersects[0].object.parent.userData.id!=undefined){
+          setScopeObj(intersects[0].object);
+        }
+        else if(intersects.length>6){
+          setScopeObj(intersects[6].object);
+        }
+        else{
+          setScopeObj(intersects[0].object);
+        }
       }
     }
 
     //animate camera when shooting
     if (isShoot){
-      socket.emit('hit',{
-        hitted: scopeObject.parent.userData.id
-      })
       let coords = state.camera.position;
+      socket.emit('hit',{
+        hitted: scopeObject.parent.userData.id,
+        whoIsShooted: socket.id 
+      })
       state.camera.position.set(coords.x+Math.random()/5,coords.y+Math.random()/5,coords.z+Math.random()/5);
       setTimeout(() => {
         setIsShooted(false);
       }, 300);
       state.camera.position.set(coords.x,coords.y,coords.z);
     }
-    
+
     //check is player die
     if (hittedObj==socket.id){
       setIsDie(true);
@@ -212,22 +234,6 @@ export const Player = ({socket}) => {
         setSide(2);
         break;
     }
-    /*
-    //diretion of camera movement while scoping
-    switch (event.keyCode){
-      case 37: 
-        setScopeOffsetX((oldOffset)=>oldOffset+0.002);
-        break;
-      case 38:
-        setScopeOffsetY((oldOffset)=>oldOffset+0.002);
-        break;
-      case 39:
-        setScopeOffsetX((oldOffset)=>oldOffset-0.002);
-        break;
-      case 40:
-        setScopeOffsetY((oldOffset)=>oldOffset-0.002);
-        break;
-    }*/
   };
   
   const handleScopeMove = (event) => {
@@ -260,12 +266,7 @@ export const Player = ({socket}) => {
     }
   };
 
-  //get hit info
-  useEffect(()=>{
-    socket.on('responseHit',(data)=>{
-      setHittedObj(data.hitted)
-    })
-  },[hittedObj,socket])
+
 
   //add mask for canvas if the side of the player is "shooter"
   useEffect(()=>{
@@ -309,7 +310,7 @@ export const Player = ({socket}) => {
     <>
       <RigidBody position={[coords.x, 1.5, coords.z]} ref={playerRef} lockRotations>
         <group ref={tankRef}>
-          <Tank position={[0, 0, 0]} statement={sides} setisShoot={setIsShooted}/>
+          <Tank isDie={isDie} camera={cameraRef.current} firePos = {firePos} statement={sides} setisShoot={setIsShooted}/>
         </group>
       </RigidBody>
     </>

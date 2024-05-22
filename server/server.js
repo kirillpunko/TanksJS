@@ -20,6 +20,16 @@ app.get('/express_backend', (req, res) => { //Строка 9
 //массив состояний игроков
 const playersState = {};
 
+//function for checking winner
+const checkForWinner = () => {
+  const alivePlayers = Object.values(playersState).filter(player => !player.isDie);
+
+  if (alivePlayers.length === 1) {
+    const winner = alivePlayers[0];
+    socketIO.to(winner.socketID).emit('win', { message: 'You are the winner!' });
+  }
+};
+
 socketIO.on('connection',(socket)=>{
   console.log(`${socket.id} user connected`)
   socket.on('stateNow',(data)=>{
@@ -32,6 +42,7 @@ socketIO.on('connection',(socket)=>{
   socket.on('died',(data)=>{
     playersState[socket.id] = data;
     socketIO.emit('responseState', Object.values(playersState));
+    checkForWinner();
   })
   socket.on('disconnect',(reason)=>{
     let id = socket.id;
