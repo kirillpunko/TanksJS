@@ -17,7 +17,6 @@ export const OtherPlayer = ({id,x,y,z,rotation,shoot,setHitData, isDie}) => {
   useEffect(() => {
     if (shoot) {
       const timeout = setTimeout(() => {
-        // Сбрасываем состояние shoot обратно в false после проигрывания анимации
         setHitData(prevState => ({
           ...prevState,
           whoShooted: ''

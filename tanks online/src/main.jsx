@@ -1,12 +1,14 @@
-import React, { useRef,useState,useEffect } from "react";
+import React from "react";
 import ReactDOM from "react-dom/client";
-import App from "./App.jsx";
 import "./index.css";
-import { Canvas } from "@react-three/fiber";
 import MainWindow from "./mainWindow.jsx";
+import MainComponent from "./mainComponent/mainComponent.jsx";
+import { BrowserRouter as Router } from "react-router-dom";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <MainWindow/>
+    <Router>
+      <MainComponent />
+    </Router>
   </React.StrictMode>
 );

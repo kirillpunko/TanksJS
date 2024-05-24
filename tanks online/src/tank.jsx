@@ -166,7 +166,6 @@ export const Tank = (props) => {
     const shootHandler = (event) => {
       if (event.button == 0 && props.statement === 2) {
         if (!isReloadRef.current) {
-          console.log("click1");
           setTimeout(() => {
             isReloadRef.current = false;
           }, 5000);
@@ -176,7 +175,6 @@ export const Tank = (props) => {
           recoilAnimation.start();
           playFireAnimation();
         } else {
-          console.log("click2");
           reloadSoundRef.current.play();
         }
       }
@@ -206,7 +204,6 @@ export const Tank = (props) => {
 
       //sound for engine
       if (EngineSoundRef.current == null) {
-        console.log(props.camera);
         if (props.camera) {
           const listener = new THREE.AudioListener();
           props.camera.add(listener);

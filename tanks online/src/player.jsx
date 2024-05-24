@@ -12,12 +12,12 @@ const ROTATION_SPEED = 0.5;
 const SCOPE_SPEED = 0.1;
 const direction = new THREE.Vector3();
 const coords={
-  x: Math.random()*100-50,
+  x: Math.random()*200-100,
   y: 1.5,
-  z: Math.random()*100-50
+  z: Math.random()*200-100
 }
 
-export const Player = ({socket, hittedObj}) => {
+export const Player = ({socket, hitData}) => {
   const playerRef = useRef();
   const { forward, backward, left, right } = usePersonControls();
   const [sides,setSide] = useState(0);
@@ -29,6 +29,7 @@ export const Player = ({socket, hittedObj}) => {
   const [firePos,setFirePos] = useState(null);
   const [isDie,setIsDie] = useState(false);
   const [moveDirection, setMoveDirection] = useState({ x: 0, y: 0 });
+  const shootSended = useRef(false);
 
   const cameraRef = useCamera();
   const radius = 3;
@@ -183,13 +184,21 @@ export const Player = ({socket, hittedObj}) => {
       }
     }
 
+    if (isShoot && !shootSended.current){
+      console.log('sended');
+      socket.emit('hit',{
+        hitted: scopeObject.parent.userData.id,
+        whoIsShooted: socket.id,
+      })
+      shootSended.current=true;
+      setTimeout(() => {
+        shootSended.current=false;
+      }, 500);
+    }
+
     //animate camera when shooting
     if (isShoot){
       let coords = state.camera.position;
-      socket.emit('hit',{
-        hitted: scopeObject.parent.userData.id,
-        whoIsShooted: socket.id 
-      })
       state.camera.position.set(coords.x+Math.random()/5,coords.y+Math.random()/5,coords.z+Math.random()/5);
       setTimeout(() => {
         setIsShooted(false);
@@ -198,7 +207,8 @@ export const Player = ({socket, hittedObj}) => {
     }
 
     //check is player die
-    if (hittedObj==socket.id){
+    if (hitData.hittedObj==socket.id){
+      console.log(hitData)
       setIsDie(true);
       const { x, y, z } = playerRef.current.translation();
       socket.emit('died',{
@@ -296,7 +306,8 @@ export const Player = ({socket, hittedObj}) => {
       y: coords.y,
       z: coords.z,
       rotation: tankRef.current.rotation.y,
-      socketID: socket.id 
+      socketID: socket.id,
+      isDie: false
     })
     direction.set(1, 0, 0);
     return () => {

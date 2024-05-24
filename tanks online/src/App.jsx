@@ -3,17 +3,14 @@ import { Ground } from "./Ground.jsx";
 import { Physics, RigidBody } from "@react-three/rapier";
 import { Player } from "./player.jsx";
 import { OtherPlayer } from "./otherPlayer.jsx";
-import socketIO from 'socket.io-client';
 import { useEffect, useState, useCallback } from "react";
 import { CameraProvider } from "./cameraContex.jsx";
 
-const socket = socketIO.connect('http://localhost:5000');
+const shadowOffset = 100;
 
-const shadowOffset = 50;
-
-export const App = () => {
+export const App = ({socket}) => {
   const [playersData, setPlayersData] = useState(null);
-  const [hitData, setHitData] = useState({ hittedObj: null, whoShooted: '' });
+  const [hitData, setHitData] = useState({ hittedObj: null, whoShooted: ''});
 
   // Get hit info
   useEffect(() => {
@@ -79,7 +76,7 @@ export const App = () => {
       />
       <Physics gravity={[0, -20, 0]}>
         <Ground />
-        <Player socket={socket} hittedObj={hitData.hittedObj}/>
+        <Player socket={socket} hitData={hitData}/>
         {renderOtherPlayers()}
         <RigidBody>
           <mesh position={[0, 0, 0]}>

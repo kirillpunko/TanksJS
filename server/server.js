@@ -20,6 +20,9 @@ app.get('/express_backend', (req, res) => { //Строка 9
 //массив состояний игроков
 const playersState = {};
 
+//массив имен
+const playersNames = {};
+
 //function for checking winner
 const checkForWinner = () => {
   const alivePlayers = Object.values(playersState).filter(player => !player.isDie);
@@ -30,14 +33,26 @@ const checkForWinner = () => {
   }
 };
 
-socketIO.on('connection',(socket)=>{
-  console.log(`${socket.id} user connected`)
+socketIO.on('connection',(socket,data)=>{
+  console.log(`${socket.id} user connected`);
+  socket.on('sendName',(data)=> {
+    playersNames[socket.id] = data.name;
+  })
   socket.on('stateNow',(data)=>{
     playersState[socket.id] = data;
     socketIO.emit('responseState', Object.values(playersState));
   })
   socket.on('hit',(data)=>{
     socketIO.emit('responseHit', data);
+
+    if(data.hitted && !playersState[data.hitted].isDie){
+      const responseDiedData = {
+        killed: playersNames[data.hitted],
+        killer: playersNames[data.whoIsShooted]
+      };
+      console.log(responseDiedData)
+      socketIO.emit('responseDied', responseDiedData);
+    }
   })
   socket.on('died',(data)=>{
     playersState[socket.id] = data;
@@ -47,6 +62,7 @@ socketIO.on('connection',(socket)=>{
   socket.on('disconnect',(reason)=>{
     let id = socket.id;
     delete playersState[id];
+    delete playersNames[id];
     console.log(`${socket.id} user disconnected`);
     socketIO.emit('responseState', Object.values(playersState));
   })
